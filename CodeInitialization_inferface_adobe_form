@@ -1,0 +1,47 @@
+DATA lv_logo TYPE TDOBNAME.
+
+SELECT scarr~carrid, scarr~carrname , spfli~connid, spfli~cityfrom, spfli~cityto
+   FROM scarr INNER JOIN spfli
+    ON scarr~carrid = spfli~carrid
+  INTO TABLE @lt_header
+  WHERE  scarr~carrid = @i_carr_id .
+
+
+IF  lt_header IS NOT INITIAL.
+  SELECT  sflight~fldate, sflight~price, sflight~currency, ( sflight~seatsmax - sflight~seatsocc ) AS avaiable_seats, sbook~passname
+    FROM sflight INNER JOIN sbook
+    ON sflight~carrid = sbook~carrid
+    AND sflight~connid = sbook~connid
+    AND sflight~fldate = sbook~fldate
+    INTO CORRESPONDING FIELDS OF TABLE @lt_details
+    WHERE sflight~carrid =  @i_carr_id .
+*    and sflight~connid = LT_HEADER-connid.
+
+ENDIF.
+
+lv_language = sy-langu.
+READ TABLE lt_header INTO ls_header INDEX 1.
+IF sy-subrc = 0.
+  IF ls_header-carrid = 'AA'.
+    lv_logo = 'DATA'. """Asiign logo
+  ELSE.
+    lv_logo = 'BANK'.
+  ENDIF.
+ENDIF.
+
+CALL METHOD cl_ssf_xsf_utilities=>get_bds_graphic_as_bmp
+  EXPORTING
+    p_object       = 'GRAPHICS'
+    p_name         = lv_logo
+    p_id           = 'BMAP'
+    p_btype        = 'BCOL'
+  RECEIVING
+    p_bmp          = lv_content
+  EXCEPTIONS
+    not_found      = 1
+    internal_error = 2
+    others         = 3
+        .
+IF sy-subrc <> 0.
+* Implement suitable error handling here
+ENDIF.
